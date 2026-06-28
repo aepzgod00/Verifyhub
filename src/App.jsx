@@ -3,8 +3,20 @@ import "./App.css";
 
 // ─── Constants ───────────────────────────────────────────────────
 const DB_KEY = "verifyhub_v3_records";
+const STATS_KEY = "verifyhub_v3_stats";
+
 function loadRecords() { try { return JSON.parse(localStorage.getItem(DB_KEY) || "[]"); } catch { return []; } }
 function saveRecords(r) { try { localStorage.setItem(DB_KEY, JSON.stringify(r)); } catch {} }
+function loadStats() {
+  try { return JSON.parse(localStorage.getItem(STATS_KEY) || "null"); } catch { return null; }
+}
+function saveStats(s) { try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch {} }
+function getStats() {
+  const saved = loadStats();
+  if (saved) return saved;
+  const s = { documents: 128, verified: 120, pending: 8, accuracy: 99.2 };
+  saveStats(s); return s;
+}
 
 function getToday() {
   return new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
@@ -17,23 +29,22 @@ function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
+async function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.onerror = () => rej(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+}
 
-// ─── Refactored Minimalist Professional Icons (Feather Style) ───
-const Icons = {
-  Home: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10z"/></svg>,
-  Doc: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
-  Upload: () => <svg className="drop-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-  Alert: () => <svg className="banner-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  BackArrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-};
-
-// ─── Topbar Subsystem ────────────────────────────────────────────
+// ─── Topbar ──────────────────────────────────────────────────────
 function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
         <div className="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
         <div>
           <div className="brand-name">VERIFYHUB</div>
@@ -41,11 +52,11 @@ function TopBar() {
         </div>
       </div>
       <div className="topbar-right">
-        <div className="topbar-date">Session: {getTodayEn()}</div>
+        <div className="topbar-date">📅 {getTodayEn()}</div>
         <div className="user-chip">
           <div className="avatar">SB</div>
           <div>
-            <div className="user-name">Seabra Ops</div>
+            <div className="user-name">Seabra Team</div>
             <div className="user-dept">Import-Export Dept.</div>
           </div>
         </div>
@@ -54,29 +65,24 @@ function TopBar() {
   );
 }
 
-// ─── Breadcrumb Component with Integrated Back Button UX ─────────
-function Breadcrumb({ items, onBackAction }) {
+// ─── Breadcrumb ───────────────────────────────────────────────────
+function Breadcrumb({ items }) {
   return (
-    <div className="breadcrumb-container">
-      {onBackAction && (
-        <button className="btn-back-nav" onClick={onBackAction}>
-          <Icons.BackArrow /> กลับหน้าหลัก
-        </button>
-      )}
-      <nav className="breadcrumb">
-        {items.map((item, i) => (
-          <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {i > 0 && <span className="bc-sep">›</span>}
-            {item.onClick ? <a onClick={item.onClick}>{item.label}</a> : <span>{item.label}</span>}
-          </span>
-        ))}
-      </nav>
-    </div>
+    <nav className="breadcrumb">
+      {items.map((item, i) => (
+        <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {i > 0 && <span className="bc-sep">›</span>}
+          {item.onClick
+            ? <a onClick={item.onClick}>{item.label}</a>
+            : <span>{item.label}</span>}
+        </span>
+      ))}
+    </nav>
   );
 }
 
-// ─── Drag and Drop Elements ──────────────────────────────────────
-function DropZone({ files, onFiles, accept }) {
+// ─── Drop Zone ────────────────────────────────────────────────────
+function DropZone({ files, onFiles, accept, label }) {
   const [over, setOver] = useState(false);
   const ref = useRef();
 
@@ -87,83 +93,110 @@ function DropZone({ files, onFiles, accept }) {
     if (arr.length) onFiles(arr);
   }, [onFiles]);
 
+  const onDrop = e => {
+    e.preventDefault(); setOver(false);
+    handle(e.dataTransfer.files);
+  };
+
   return (
     <div>
       <div
         className={`drop-zone${over ? " drag-over" : ""}`}
         onDragOver={e => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
-        onDrop={e => { e.preventDefault(); setOver(false); handle(e.dataTransfer.files); }}
+        onDrop={onDrop}
         onClick={() => ref.current.click()}
       >
-        <Icons.Upload />
-        <div className="drop-label">ลากและวางเอกสารของคุณลงที่นี่</div>
-        <div className="drop-sub">หรือ <span className="drop-browse">คลิกเพื่อเลือกไฟล์</span></div>
-        <input ref={ref} type="file" multiple accept={accept} style={{ display: "none" }} onChange={e => handle(e.target.files)} />
+        <span className="drop-icon">📂</span>
+        <div className="drop-label">ลากไฟล์มาวางตรงนี้</div>
+        <div className="drop-sub">หรือ <span className="drop-browse">เลือกไฟล์จากเครื่อง</span></div>
+        <div className="t-xs" style={{ color: "var(--muted)", marginTop: 6 }}>PDF · PNG · JPG</div>
+        <input ref={ref} type="file" multiple accept={accept} style={{ display: "none" }}
+          onChange={e => handle(e.target.files)} />
       </div>
       <div className="file-list">
-        {files.length ? files.map(f => (
-          <div key={f.name} className="file-item">
-            <span className="file-item-name">{f.name}</span>
-            <span className="file-item-size">{formatFileSize(f.size)}</span>
-          </div>
-        )) : <div className="no-files">ยังไม่ได้เพิ่มไฟล์แนบประกอบ</div>}
+        {files.length
+          ? files.map(f => (
+            <div key={f.name} className="file-item">
+              <span className="file-item-icon">📄</span>
+              <span className="file-item-name">{f.name}</span>
+              <span className="file-item-size">{formatFileSize(f.size)}</span>
+            </div>
+          ))
+          : <div className="no-files">ยังไม่มีไฟล์</div>}
       </div>
     </div>
   );
 }
 
-// ─── Portal Control Console Workspace ─────────────────────────────
+// ─── Portal Page ──────────────────────────────────────────────────
 function Portal({ onNavigate }) {
+  const stats = getStats();
   const today = getToday();
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Dashboard" }]} />
+      <Breadcrumb items={[{ label: "Home" }]} />
       <main className="main">
         <div className="welcome-section">
-          <div className="welcome-meta">
-            <span className="meta-dot"></span>
-            <span style={{ color: "var(--text-muted)", fontWeight: 700, fontSize: "11.5px", letterSpacing: "0.03em" }}>OPERATIONAL PANEL · {today}</span>
+          <div className="welcome-left">
+            <div className="welcome-meta">
+              <span className="meta-dot"></span>
+              <span className="t-xs" style={{ color: "var(--muted)" }}>2 Workspaces Available · {today}</span>
+            </div>
+            <div className="welcome-title">Welcome back.</div>
+            <div className="welcome-sub" style={{ marginTop: 8 }}>Ready to verify your shipping documents.</div>
           </div>
-          <div className="welcome-title">Control Console Overview</div>
-          <div className="welcome-sub">ศูนย์ควบคุมเอกสารนำเข้าและระบบบันทึกตรวจสอบปล่อยใบสั่งปล่อยตู้สินค้า (D/O) เจ้าหน้าที่เคาน์เตอร์</div>
         </div>
 
-        {/* REMOVED: Stats Box Banner Section completely as requested */}
+        <div className="stats-row">
+          {[
+            { label: "Documents", value: stats.documents, sub: "Total processed", icon: "📋" },
+            { label: "Verified", value: stats.verified, sub: "Completed", icon: "✅" },
+            { label: "Pending", value: stats.pending, sub: "Awaiting review", icon: "⏳" },
+            { label: "Accuracy", value: stats.accuracy + "%", sub: "Overall rate", icon: "🎯" },
+          ].map((s, i) => (
+            <div key={i} className="stat-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div className="stat-label">{s.label}</div>
+                <span style={{ fontSize: 18, opacity: .7 }}>{s.icon}</span>
+              </div>
+              <div className="stat-value">{s.value}</div>
+              <div className="stat-sub">{s.sub}</div>
+            </div>
+          ))}
+        </div>
 
-        <div className="section-title">Operational Workspaces</div>
+        <div className="section-title">Workspaces</div>
         <div className="portal-grid">
-          <div className="portal-card audit-theme" onClick={() => onNavigate("audit")}>
+          <div className="portal-card" onClick={() => onNavigate("audit")}>
             <div className="card-header">
-              <div className="card-icon-wrap"><Icons.Doc /></div>
-              <span className="card-badge-tag">Compliance</span>
+              <div className="card-icon-wrap">🔍</div>
+              <span className="card-badge-tag">Document Audit</span>
             </div>
-            <div>
-              <div className="card-title">ตรวจสอบเอกสาร (Automated Audit)</div>
-              <p className="card-desc">สืบค้นเปรียบเทียบข้อมูลสรุปโครงสร้าง B/L ต้นฉบับและเอกสารใบขอแมนิเฟสต์แก้ไขหน้าตั๋วอัตโนมัติ</p>
-              <ul className="card-features">
-                <li><span className="check-icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></span> Bill of Lading Cross Verification</li>
-                <li><span className="check-icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></span> Auto Mismatch Flagging Intelligence</li>
-              </ul>
-            </div>
-            <button className="card-cta">เปิดชุดสืบค้นข้อมูลตรวจสอบเอกสาร →</button>
+            <div className="card-title">ตรวจสอบเอกสาร</div>
+            <p className="card-desc">เปรียบเทียบข้อมูล B/L กับ Amendment อัตโนมัติ พร้อมรายงานผลแบบ field-by-field</p>
+            <ul className="card-features">
+              <li><span className="check-icon">✓</span> Bill of Lading (B/L)</li>
+              <li><span className="check-icon">✓</span> Amendment Notice</li>
+              <li><span className="check-icon">✓</span> Attached Sheet & ไฟล์แนบ</li>
+            </ul>
+            <button className="card-cta">เริ่มตรวจสอบเอกสาร <span className="arr">→</span></button>
           </div>
 
-          <div className="portal-card tracking-theme" onClick={() => onNavigate("tracking")}>
+          <div className="portal-card" onClick={() => onNavigate("tracking")}>
             <div className="card-header">
-              <div className="card-icon-wrap"><Icons.Home /></div>
-              <span className="card-badge-tag">Operations</span>
+              <div className="card-icon-wrap">📦</div>
+              <span className="card-badge-tag">D/O Management</span>
             </div>
-            <div>
-              <div className="card-title">บันทึกรับเอกสาร D/O</div>
-              <p className="card-desc">ลงทะเบียนประวัติ ค้นหา และควบคุมการเข้าปล่อยใบสั่งปล่อยสินค้าหน้าเคาน์เตอร์บริการจัดการ</p>
-              <ul className="card-features">
-                <li><span className="check-icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></span> Delivery Order Manifest Indexing</li>
-                <li><span className="check-icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></span> Consignee Realtime Storage Log</li>
-              </ul>
-            </div>
-            <button className="card-cta">เปิดแดชบอร์ดงานปล่อยหน้าเคาน์เตอร์ →</button>
+            <div className="card-title">บันทึกรับ D/O</div>
+            <p className="card-desc">บันทึกและค้นหาประวัติการรับมอบเอกสาร D/O หน้าเคาน์เตอร์ พร้อม search realtime</p>
+            <ul className="card-features">
+              <li><span className="check-icon">✓</span> D/O Release Logging</li>
+              <li><span className="check-icon">✓</span> Consignee Tracking</li>
+              <li><span className="check-icon">✓</span> Quick Search History</li>
+            </ul>
+            <button className="card-cta">เปิดพื้นที่จัดการ D/O <span className="arr">→</span></button>
           </div>
         </div>
 
@@ -173,164 +206,417 @@ function Portal({ onNavigate }) {
   );
 }
 
-// ─── Automated Audit Internal Module ──────────────────────────────
-function AuditPage({ onBack }) {
-  const [blFiles, setBLFiles] = useState([]);
-  const [amendFiles, setAmendFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+// ─── Parse AI JSON result ─────────────────────────────────────────
+function parseResult(rawText) {
+  try {
+    const clean = rawText.replace(/```json|```/g, "").trim();
+    const data = JSON.parse(clean);
+    return Array.isArray(data) ? data : [data];
+  } catch {
+    return null;
+  }
+}
 
-  function executeVerification() {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setShowResult(true);
-    }, 1500);
+// ─── Result Display ───────────────────────────────────────────────
+function ResultDisplay({ data, rawText }) {
+  const parsed = parseResult(data || rawText);
+
+  if (!parsed) {
+    return (
+      <div className="result-card">
+        <div className="result-card-header">
+          <span className="bl-number">ผลการตรวจสอบ</span>
+        </div>
+        <div style={{ padding: "20px", fontSize: 13, color: "var(--text-2)", whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
+          {rawText}
+        </div>
+      </div>
+    );
+  }
+
+  const totalMismatch = parsed.reduce((acc, bl) => acc + (bl.items || []).filter(i => i.status === "MISMATCH").length, 0);
+  const totalItems = parsed.reduce((acc, bl) => acc + (bl.items || []).length, 0);
+  const overallPass = totalMismatch === 0;
+
+  function copyResult() {
+    navigator.clipboard?.writeText(JSON.stringify(parsed, null, 2));
   }
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Dashboard", onClick: onBack }, { label: "Automated Audit Operations" }]} onBackAction={onBack} />
+      {/* Banner */}
+      <div className={`result-banner ${overallPass ? "pass" : totalMismatch <= 2 ? "warn" : "fail"}`}>
+        <span className="banner-icon">{overallPass ? "✅" : totalMismatch <= 2 ? "⚠️" : "❌"}</span>
+        <div>
+          <div className="banner-title">
+            {overallPass ? "Verification Completed — All documents are consistent." : `${totalMismatch} Mismatch${totalMismatch > 1 ? "es" : ""} Found — Review Required`}
+          </div>
+          <div className="banner-sub">Checked {totalItems} fields across {parsed.length} B/L document{parsed.length > 1 ? "s" : ""}</div>
+        </div>
+      </div>
+
+      {/* Per-BL cards */}
+      {parsed.map((bl, i) => {
+        const mis = (bl.items || []).filter(x => x.status === "MISMATCH").length;
+        return (
+          <div key={i} className="result-card">
+            <div className="result-card-header">
+              <span className="bl-number">📋 {bl.bl || `Document ${i + 1}`}</span>
+              <span className={`bl-status-badge ${mis === 0 ? "badge-pass" : "badge-fail"}`}>
+                {mis === 0 ? "✓ PASS" : `✗ ${mis} MISMATCH`}
+              </span>
+            </div>
+            <table className="result-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>ข้อมูล B/L</th>
+                  <th>ข้อมูล Amend</th>
+                  <th>Status</th>
+                  <th>Remark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(bl.items || []).map((item, j) => (
+                  <tr key={j}>
+                    <td><span className="field-name">{item.field}</span></td>
+                    <td><span className="field-value">{item.original}</span></td>
+                    <td><span className="field-value">{item.amend}</span></td>
+                    <td>
+                      <span className={item.status === "MATCH" ? "badge-match" : item.status === "REVIEW" ? "badge-review" : "badge-mismatch"}>
+                        {item.status === "MATCH" ? "🟢 MATCH" : item.status === "REVIEW" ? "🟡 REVIEW" : "🔴 MISMATCH"}
+                      </span>
+                    </td>
+                    <td><span className="remark-text">{item.remark}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+
+      {/* Summary card */}
+      {parsed[0]?.summary && (
+        <div className="summary-card">
+          <div className="result-card-header">
+            <span className="bl-number">📊 Weight & Volume Summary</span>
+            <span className={`bl-status-badge ${parsed[0].summary.overall === "PASS" ? "badge-pass" : "badge-fail"}`}>
+              Overall: {parsed[0].summary.overall}
+            </span>
+          </div>
+          <div className="summary-grid">
+            <div className="summary-item">
+              <div className="summary-label">Gross Weight</div>
+              <div className="summary-val">{parsed[0].summary.grossWeight?.total || "—"}</div>
+              <div className="summary-calc">{parsed[0].summary.grossWeight?.calculation || ""}</div>
+              <div style={{ marginTop: 8 }}>
+                <span className={parsed[0].summary.grossWeight?.status === "MATCH" ? "badge-match" : "badge-mismatch"}>
+                  {parsed[0].summary.grossWeight?.status === "MATCH" ? "🟢 MATCH" : "🔴 MISMATCH"}
+                </span>
+              </div>
+            </div>
+            <div className="summary-item">
+              <div className="summary-label">Total CBM</div>
+              <div className="summary-val">{parsed[0].summary.cbm?.total || "—"}</div>
+              <div className="summary-calc">{parsed[0].summary.cbm?.calculation || ""}</div>
+              <div style={{ marginTop: 8 }}>
+                <span className={parsed[0].summary.cbm?.status === "MATCH" ? "badge-match" : "badge-mismatch"}>
+                  {parsed[0].summary.cbm?.status === "MATCH" ? "🟢 MATCH" : "🔴 MISMATCH"}
+                </span>
+              </div>
+            </div>
+            <div className="summary-item">
+              <div className="summary-label">Overall Result</div>
+              <div style={{ fontSize: 36, margin: "8px 0" }}>{parsed[0].summary.overall === "PASS" ? "✅" : "❌"}</div>
+              <div className="summary-calc">{parsed[0].summary.overall === "PASS" ? "All fields verified" : "Review required"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export bar */}
+      <div className="export-bar">
+        <span className="label">Export:</span>
+        <button className="btn btn-secondary" onClick={copyResult}>📋 Copy JSON</button>
+        <button className="btn btn-secondary" onClick={() => {
+          const txt = JSON.stringify(parsed, null, 2);
+          const a = document.createElement("a");
+          a.href = "data:text/json," + encodeURIComponent(txt);
+          a.download = "verifyhub-result.json";
+          a.click();
+        }}>⬇ Download JSON</button>
+        <button className="btn btn-secondary" onClick={() => window.print()}>🖨 Print Report</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Audit Page ───────────────────────────────────────────────────
+const LOADING_STAGES = [
+  { label: "Extracting Document Data...", sub: "Reading B/L and Amendment files" },
+  { label: "Comparing Fields...", sub: "Cross-referencing Consignee, Weight, Marks" },
+  { label: "Calculating Totals...", sub: "Summing Gross Weight and CBM" },
+  { label: "Generating Report...", sub: "Preparing structured output" },
+];
+
+function AuditPage({ onBack }) {
+  const [blFiles, setBLFiles] = useState([]);
+  const [amendFiles, setAmendFiles] = useState([]);
+  const [result, setResult] = useState(null);
+  const [rawText, setRawText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadStage, setLoadStage] = useState(0);
+  const [step, setStep] = useState(1);
+
+  async function runAudit() {
+    if (!blFiles.length || !amendFiles.length || loading) return;
+    setLoading(true); setResult(null); setRawText(""); setStep(2);
+
+    const stageTimer = setInterval(() => {
+      setLoadStage(s => (s < LOADING_STAGES.length - 1 ? s + 1 : s));
+    }, 1800);
+
+    try {
+      const content = [];
+      for (const f of [...blFiles, ...amendFiles]) {
+        const b64 = await fileToBase64(f);
+        const mt = f.type || "application/pdf";
+        content.push(mt === "application/pdf"
+          ? { type: "document", source: { type: "base64", media_type: mt, data: b64 } }
+          : { type: "image", source: { type: "base64", media_type: mt, data: b64 } });
+      }
+
+      content.push({ type: "text", text: `You are a logistics document compliance auditor for Seabra Trans Freight.
+Analyze the uploaded B/L and Amendment documents carefully.
+
+OUTPUT FORMAT: Respond ONLY with valid JSON, no markdown, no preamble.
+
+JSON Structure:
+[
+  {
+    "bl": "B/L number here",
+    "items": [
+      {
+        "field": "Consignee",
+        "original": "value from B/L",
+        "amend": "value from Amendment",
+        "status": "MATCH or MISMATCH or REVIEW",
+        "remark": "brief explanation"
+      }
+    ]
+  }
+]
+
+Include a "summary" object in the FIRST B/L entry:
+"summary": {
+  "grossWeight": {
+    "total": "combined total",
+    "calculation": "X KGS (BL-001) + Y KGS (BL-002) = Z KGS",
+    "status": "MATCH or MISMATCH"
+  },
+  "cbm": {
+    "total": "combined total",
+    "calculation": "X CBM (BL-001) + Y CBM (BL-002) = Z CBM",
+    "status": "MATCH or MISMATCH"
+  },
+  "overall": "PASS or FAIL"
+}
+
+AUDIT RULES:
+- Consignee: match company name only, ignore address/building/zip
+- Quantity: match numbers and units, ignore formatting
+- Description: match core product names, ignore spacing
+- Shipping Marks: exact match required
+- Status options: MATCH, MISMATCH, REVIEW (use REVIEW when ambiguous)
+
+Fields to check per B/L: Consignee, Quantity, Shipping Marks, Description of Goods, Gross Weight, CBM
+
+Output ONLY the JSON array. Nothing else.` });
+
+      const resp = await fetch("/api/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content }] }),
+      });
+      const data = await resp.json();
+      const text = data.content?.map(b => b.text || "").join("\n") || "";
+      setRawText(text);
+      setResult(text);
+
+      // Update stats
+      const s = getStats();
+      s.documents += blFiles.length;
+      s.verified += blFiles.length;
+      saveStats(s);
+      setStep(3);
+    } catch (e) {
+      setRawText("เกิดข้อผิดพลาด: " + e.message);
+      setStep(3);
+    }
+    clearInterval(stageTimer);
+    setLoadStage(0);
+    setLoading(false);
+  }
+
+  const canRun = blFiles.length > 0 && amendFiles.length > 0 && !loading;
+
+  return (
+    <div>
+      <Breadcrumb items={[{ label: "Home", onClick: onBack }, { label: "Document Verification" }]} />
       <main className="main">
         <div className="page-header">
-          <div className="page-icon"><Icons.Doc /></div>
+          <div className="page-icon">🔍</div>
           <div>
-            <div className="page-title-text">Automated Compliance Verification</div>
-            <div className="page-sub">ระบบประมวลผลสอบทานความถูกต้องโครงสร้างพารามิเตอร์ใบตราส่งตู้สินค้าประจำฝ่าย</div>
+            <div className="page-title-text">Automated Document Verification</div>
+            <div className="page-sub">Compare B/L against Amendment — field-by-field with structured report</div>
           </div>
+        </div>
+
+        {/* Progress steps */}
+        <div className="progress-steps" style={{ marginBottom: 24 }}>
+          {[
+            { n: 1, label: "Upload Files" },
+            { n: 2, label: "Processing" },
+            { n: 3, label: "Result" },
+          ].map((s, i, arr) => (
+            <span key={s.n} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+              <span className={`step ${step === s.n ? "active" : step > s.n ? "done" : ""}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="step-num">{step > s.n ? "✓" : s.n}</span>
+                <span className="step-label">{s.label}</span>
+              </span>
+              {i < arr.length - 1 && <span className="step-divider" style={{ flex: 1 }}></span>}
+            </span>
+          ))}
         </div>
 
         <div className="upload-grid">
           <div>
-            <div className="upload-col-label lbl-bl">Bill of Lading Base Doc (B/L)</div>
-            <DropZone files={blFiles} onFiles={setBLFiles} accept=".pdf,.png,.jpg,.jpeg" />
+            <div className="upload-col-label lbl-bl">📄 Bill of Lading (B/L)</div>
+            <DropZone files={blFiles} onFiles={setBLFiles} accept=".pdf,.png,.jpg,.jpeg" label="B/L" />
           </div>
           <div>
-            <div className="upload-col-label lbl-am">Amend Request Files</div>
-            <DropZone files={amendFiles} onFiles={setAmendFiles} accept=".pdf,.png,.jpg,.jpeg" />
+            <div className="upload-col-label lbl-am">✏️ Amend & Attached Sheet</div>
+            <DropZone files={amendFiles} onFiles={setAmendFiles} accept=".pdf,.png,.jpg,.jpeg" label="Amend" />
           </div>
         </div>
 
-        <button className="btn btn-primary btn-full btn-lg" disabled={!blFiles.length || !amendFiles.length} onClick={executeVerification}>
-          เริ่มระบบกระบวนการตรวจสอบข้อมูลเอกสารสินค้า
+        <button className="btn btn-primary btn-full btn-lg" disabled={!canRun} onClick={runAudit}
+          style={{ borderRadius: "100px" }}>
+          {loading ? "⏳ กำลังประมวลผล..." : "ประมวลผลการเปรียบเทียบเอกสาร"}
         </button>
 
         {loading && (
           <div className="loading-box">
             <div className="loading-spinner"></div>
-            <div className="loading-stage">กำลังประมวลผลวิเคราะห์ความสอดคล้องเอกสาร...</div>
+            <div className="loading-stage">{LOADING_STAGES[loadStage].label}</div>
+            <div className="loading-sub">{LOADING_STAGES[loadStage].sub}</div>
           </div>
         )}
 
-        {showResult && !loading && (
-          <div style={{ marginTop: 32 }}>
-            <div className="result-banner fail">
-              <Icons.Alert />
-              <div>
-                <div className="banner-title">พบข้อผิดพลาด 1 จุดที่จำเป็นต้องได้รับการตรวจสอบใหม่ (Discrepancy Detected)</div>
-                <div className="banner-sub">พารามิเตอร์ตู้สินค้าบางส่วนในเอกสารแก้ใบแจ้งงาน Manifest ไม่สอดรับกับใบหลัก B/L</div>
-              </div>
-            </div>
+        {result && !loading && <div style={{ marginTop: 24 }}><ResultDisplay data={result} rawText={rawText} /></div>}
 
-            <div className="result-card">
-              <div className="result-card-header"><span className="bl-number">เอกสารฐานหลัก: OOCL62831109A</span></div>
-              <table className="result-table">
-                <thead>
-                  <tr><th>Target Field</th><th>ข้อมูลเดิม B/L</th><th>ข้อมูลขอแก้ Amend</th><th>สถานะ</th><th>หมายเหตุการสืบค้น</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><span className="field-name">Shipper Name</span></td>
-                    <td>GLOBAL LOGISTICS CORP.</td>
-                    <td>GLOBAL LOGISTICS CORP.</td>
-                    <td><span className="badge-match">MATCH</span></td>
-                    <td>ข้อมูลถูกต้องตรงกันตามเกณฑ์</td>
-                  </tr>
-                  <tr>
-                    <td><span className="field-name">Seal Number</span></td>
-                    <td>SL-9918231</td>
-                    <td>SL-9918299</td>
-                    <td><span className="badge-mismatch">MISMATCH</span></td>
-                    <td>เลขซีลตู้สินค้าตัวท้ายไม่สอดคล้องกับพอร์ตใบเสร็จรับเงินต้นทาง</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
         <Footer />
       </main>
     </div>
   );
 }
 
-// ─── Counter Service D/O Management Module ───────────────────────
+// ─── Tracking Page ────────────────────────────────────────────────
 function TrackingPage({ onBack }) {
   const [records, setRecords] = useState(loadRecords());
   const [bl, setBL] = useState("");
   const [consignee, setConsignee] = useState("");
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState("");
 
-  function handleSubmit() {
-    if (!bl.trim()) return;
-    const next = [...records, { bl: bl.trim(), consignee: consignee.trim() || "N/A", date: getToday() }];
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
+
+  function saveDO() {
+    if (!bl.trim()) { showToast("⚠ โปรดกรอกหมายเลข B/L"); return; }
+    const next = records.filter(r => r.bl !== bl.trim());
+    next.push({ bl: bl.trim(), consignee: consignee.trim() || "ลูกค้าหน้าเคาน์เตอร์", date: getToday() });
     setRecords(next); saveRecords(next);
     setBL(""); setConsignee("");
+    showToast("✓ บันทึก " + bl.trim() + " เรียบร้อยแล้ว");
   }
+
+  function clearAll() {
+    if (window.confirm("ยืนยันลบข้อมูลทั้งหมด?")) {
+      setRecords([]); saveRecords([]);
+      showToast("ล้างข้อมูลทั้งหมดแล้ว");
+    }
+  }
+
+  const filtered = records.filter(r =>
+    r.bl.toLowerCase().includes(search.toLowerCase()) ||
+    r.consignee.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Dashboard", onClick: onBack }, { label: "D/O Counter Registry" }]} onBackAction={onBack} />
+      {toast && <div className="toast show">{toast}</div>}
+      <Breadcrumb items={[{ label: "Home", onClick: onBack }, { label: "D/O Management" }]} />
       <main className="main">
         <div className="page-header">
-          <div className="page-icon"><Icons.Home /></div>
+          <div className="page-icon">📦</div>
           <div>
-            <div className="page-title-text">Delivery Order Record Operations</div>
-            <div className="page-sub">ระบบลงบันทึกควบคุมคลังส่งรับใบปล่อยสินค้าหน้าเคาน์เตอร์ฝ่ายประสานงานขาเข้า</div>
+            <div className="page-title-text">D/O Release Management</div>
+            <div className="page-sub">บันทึกและค้นหาประวัติการรับมอบเอกสาร Delivery Order</div>
           </div>
         </div>
 
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: 24, borderRadius: "var(--r-md)", boxShadow: "var(--shadow-sm)" }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>หมายเลขหลักใบตราส่งสินค้า (B/L Number)</label>
-              <input type="text" value={bl} placeholder="ตัวอย่าง: OOCL210831" onChange={e => setBL(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label>ชื่อบริษัทผู้นำเข้าสินค้าปลายทาง / Consignee Agent</label>
-              <input type="text" value={consignee} placeholder="ตัวอย่าง: Seabra Logistics Co., Ltd." onChange={e => setConsignee(e.target.value)} />
-            </div>
+        <div className="tracking-section-title"><span className="sec-dot"></span>บันทึกการรับ D/O</div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>หมายเลข Bill of Lading (B/L)</label>
+            <input type="text" placeholder="เช่น PKELCH2660002" value={bl} onChange={e => setBL(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveDO()} />
           </div>
-          <button className="btn btn-primary" onClick={handleSubmit}>บันทึกข้อมูลเข้าสู่เซสชัน</button>
+          <div className="form-group">
+            <label>ชื่อบริษัทลูกค้า / Consignee</label>
+            <input type="text" placeholder="เช่น SIAM LOGISTICS CO., LTD." value={consignee} onChange={e => setConsignee(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveDO()} />
+          </div>
         </div>
+        <button className="btn btn-primary" style={{ borderRadius: "100px", padding: "11px 28px" }} onClick={saveDO}>
+          บันทึกการรับมอบเอกสาร
+        </button>
 
         <hr className="divider" />
+
+        <div className="tracking-section-title"><span className="sec-dot"></span>ค้นหาประวัติ</div>
+        <div className="search-wrap">
+          <span className="search-icon">🔎</span>
+          <input type="text" placeholder="พิมพ์เลข B/L หรือชื่อ Consignee..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+
+        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
+          แสดง {filtered.length} รายการ {search && `(กรองจาก "${search}")`}
+        </div>
 
         <div className="table-card">
           <table>
             <thead>
-              <tr><th>หมายเลขเอกสาร B/L</th><th>บริษัทผู้นำเข้าสินค้า (Consignee)</th><th>วันที่รับดำเนินการเคลียร์</th></tr>
+              <tr><th>เลขที่ B/L</th><th>Consignee</th><th>วันที่รับ D/O</th></tr>
             </thead>
             <tbody>
-              {records.length ? records.map((r, i) => (
-                <tr key={i}>
-                  <td><strong style={{ fontFamily: "monospace", fontSize: 13, color: "var(--primary-navy)" }}>{r.bl}</strong></td>
+              {filtered.length ? filtered.map(r => (
+                <tr key={r.bl}>
+                  <td><strong style={{ fontFamily: "monospace", fontSize: 13 }}>{r.bl}</strong></td>
                   <td>{r.consignee}</td>
                   <td><span className="date-badge">{r.date}</span></td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} style={{ textAlign: "center", color: "var(--text-light)", padding: 32 }}>ยังไม่มีประวัติการลงทะเบียนในระบบฐานข้อมูลชั่วคราวขณะนี้</td></tr>
+                <tr><td colSpan={3} className="empty-row" style={{ textAlign: "center", color: "var(--muted)", padding: 48 }}>ยังไม่มีข้อมูล</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         <div className="danger-zone">
-          <div className="danger-label">⚠ Administrator Database Flush Management</div>
-          <button className="btn btn-danger" onClick={() => {
-            if(confirm("คุณต้องการล้างข้อมูลบันทึกทั้งหมดออกใช่หรือไม่?")) { setRecords([]); saveRecords([]); }
-          }}>
-            ล้างข้อมูลใน Local Storage ทั้งหมด
-          </button>
+          <div className="danger-label">⚠ Administrator Zone</div>
+          <button className="btn btn-danger" onClick={clearAll}>ล้างฐานข้อมูลทั้งหมด</button>
         </div>
 
         <Footer />
@@ -339,17 +625,17 @@ function TrackingPage({ onBack }) {
   );
 }
 
-// ─── Footer Component ─────────────────────────────────────────────
+// ─── Footer ───────────────────────────────────────────────────────
 function Footer() {
   return (
     <footer className="footer">
-      <div className="footer-name">VERIFYHUB LOGISTICS CORE SYSTEMS</div>
-      <div className="footer-meta">Operational Version 3.5 (Corporate Cream-Navy) · Platform of Freight Documentation Management</div>
+      <div className="footer-name">VERIFYHUB</div>
+      <div className="footer-meta">Version 1.0 · Freight Document Operations Platform · Department of Logistics</div>
     </footer>
   );
 }
 
-// ─── Main Switch Route Entrance ──────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("portal");
   return (
