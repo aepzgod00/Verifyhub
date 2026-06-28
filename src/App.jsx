@@ -18,13 +18,15 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-// ─── Refactored Minimalist Professional Icons (Feather Style) ───
+// ─── Minimalist Professional Icons (Feather Style) ───
 const Icons = {
   Home: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10z"/></svg>,
   Doc: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   Upload: () => <svg className="drop-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-  Alert: () => <svg className="banner-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  BackArrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  Alert: () => <svg style={{width: 20, height: 20, stroke: "currentColor", fill: "none", strokeWidth: 2}} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  BackArrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  GridTable: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>,
+  Calculator: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="16"></line><line x1="15" y1="22" x2="15" y2="16"></line><line x1="4" y1="16" x2="20" y2="16"></line><line x1="4" y1="10" x2="20" y2="10"></line><line x1="8" y1="6" x2="10" y2="6"></line><line x1="14" y1="6" x2="16" y2="6"></line></svg>
 };
 
 // ─── Topbar Subsystem ────────────────────────────────────────────
@@ -54,7 +56,7 @@ function TopBar() {
   );
 }
 
-// ─── Breadcrumb Component with Integrated Back Button UX ─────────
+// ─── Breadcrumb Component ─────────────────────────────────────────
 function Breadcrumb({ items, onBackAction }) {
   return (
     <div className="breadcrumb-container">
@@ -129,8 +131,6 @@ function Portal({ onNavigate }) {
           <div className="welcome-title">Welcome Back.</div>
           <div className="welcome-sub">Choose a workspace to continue your operations.</div>
         </div>
-
-        {/* REMOVED: Stats Box Banner Section completely as requested */}
 
         <div className="section-title">Operational Workspaces</div>
         <div className="portal-grid">
@@ -212,7 +212,7 @@ function AuditPage({ onBack }) {
         </div>
 
         <button className="btn btn-primary btn-full btn-lg" disabled={!blFiles.length || !amendFiles.length} onClick={executeVerification}>
-          ประมวลผมการเปรียบเทียบข้อมูลเอกสาร
+          ประมวลผลการเปรียบเทียบข้อมูลเอกสาร
         </button>
 
         {loading && (
@@ -224,38 +224,112 @@ function AuditPage({ onBack }) {
 
         {showResult && !loading && (
           <div style={{ marginTop: 32 }}>
-            <div className="result-banner fail">
-              <Icons.Alert />
-              <div>
-                <div className="banner-title">พบข้อผิดพลาด 1 จุดที่จำเป็นต้องได้รับการตรวจสอบใหม่ (Discrepancy Detected)</div>
-                <div className="banner-sub">พารามิเตอร์ตู้สินค้าบางส่วนในAmendment ไม่สอดรับกับใบหลัก B/L</div>
-              </div>
+            
+            {/* 1. ตารางผลการตรวจสอบรายฉบับ (ตามรูปแบบรูปที่ 2) */}
+            <div className="audit-report-title">
+              <Icons.GridTable /> รายงานผลการตรวจสอบเปรียบเทียบข้อมูลเอกสารรายฉบับ
             </div>
 
-            <div className="result-card">
-              <div className="result-card-header"><span className="bl-number">เอกสารฐานหลัก: OOCL62831109A</span></div>
-              <table className="result-table">
+            <div className="table-card">
+              <table>
                 <thead>
-                  <tr><th>Target Field</th><th>ข้อมูลเดิม B/L</th><th>ข้อมูลขอแก้ Amend</th><th>สถานะ</th><th>หมายเหตุการสืบค้น</th></tr>
+                  <tr>
+                    <th style={{ width: "14%" }}>เลขที่ B/L / ข้อมูล D/O</th>
+                    <th style={{ width: "16%" }}>หัวข้อตรวจสอบ</th>
+                    <th style={{ width: "26%" }}>ข้อมูลต้นฉบับบนใบ B/L</th>
+                    <th style={{ width: "26%" }}>ข้อมูลบนใบ Amend + Attached Sheet</th>
+                    <th style={{ width: "8%" }}>ผลการตรวจสอบ</th>
+                    <th style={{ width: "20%" }}>หมายเหตุวิเคราะห์/ เกณฑ์การอนุโลม</th>
+                  </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><span className="field-name">Shipper Name</span></td>
-                    <td>GLOBAL LOGISTICS CORP.</td>
-                    <td>GLOBAL LOGISTICS CORP.</td>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td>ผู้รับสินค้า (Consignee)</td>
+                    <td>DELTA ELECTRONICS (THAILAND) PUBLIC CO., LTD.</td>
+                    <td>DELTA ELECTRONICS (THAILAND) PUBLIC CO., LTD.</td>
                     <td><span className="badge-match">MATCH</span></td>
-                    <td>ข้อมูลถูกต้องตรงกันตามเกณฑ์</td>
+                    <td>ตรวจสอบเฉพาะชื่อบริษัทเท่านั้น การเว้นวรรคเล็กน้อยถือว่าตรงกัน</td>
                   </tr>
                   <tr>
-                    <td><span className="field-name">Seal Number</span></td>
-                    <td>SL-9918231</td>
-                    <td>SL-9918299</td>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td>จำนวนสินค้า (Quantity)</td>
+                    <td>1 WOODEN CASE (S)</td>
+                    <td>1 PACKAGES (1 WOODEN CASE)</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>จำนวนและประเภทหีบห่อตรงกัน (1 WOODEN CASE) การระบุ "(S)" หรือ "PACKAGES" ก่อน "WOODEN CASE" ถือว่าตรงกัน</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td>เครื่องหมายขนส่ง (Shipping Marks)</td>
+                    <td style={{ fontSize: "11px" }}>CHIP HUA (FOR DELTA THAILAND) PO NO: PO260302303310 (PECH ROSWAN) W/CASE: EL01 MADE IN TAIWAN</td>
+                    <td style={{ fontSize: "11px" }}>CHIP HUA (FOR DELTA THAILAND) PO NO: PO260302303310 (PECH ROSWAN) W/CASE: EL01 MADE IN TAIWAN</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>ข้อมูลเครื่องหมายขนส่งตรงกันทั้งหมด</td>
+                  </tr>
+                  <tr style={{ background: "#FFF8F8" }}>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td style={{ color: "#C62828", fontWeight: "600" }}>รายละเอียดสินค้า (Description of Goods)</td>
+                    <td style={{ fontSize: "11px" }}>ELITE PCB DOUBLE SLIDER ROUTER(3HP) <mark style={{ background: "#FFCDD2" }}>EM-5700ON-DW-V</mark> SERIAL NUMBER:M6573</td>
+                    <td style={{ fontSize: "11px" }}>ELITE PCB DOUBLE SLIDER ROUTER(3HP) <mark style={{ background: "#FFCDD2" }}>EM-5700N-DW-V</mark> SERIAL NUMBER:M6573</td>
                     <td><span className="badge-mismatch">MISMATCH</span></td>
-                    <td>เลขซีลตู้สินค้าตัวท้ายไม่สอดคล้องกับพอร์ตใบเสร็จรับเงินต้นทาง</td>
+                    <td style={{ color: "#C62828" }}>รหัสสินค้า "EM-5700ON-DW-V" บนใบ B/L มีตัวอักษร 'O' เกินมาหนึ่งตัวเมื่อเทียบกับ "EM-5700N-DW-V" ในใบ Amend</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td>น้ำหนักมวลรวม (Gross Weight)</td>
+                    <td>1,060.000 KGS.</td>
+                    <td>1,060.000 KGS</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>ค่าน้ำหนักมวลรวมตรงกัน</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PKEBKK2660035</strong></td>
+                    <td>ปริมาตรสินค้า (Measurement CBM)</td>
+                    <td>7.210 M3</td>
+                    <td>7.210 CBM</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>ค่าปริมาตรสินค้าตรงกัน หน่วย M3 และ CBM เป็นหน่วยเดียวกัน</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            {/* 2. ตารางสรุปการกระทบยอดสะสม (ตามรูปแบบรูปที่ 2) */}
+            <div className="audit-report-title" style={{ marginTop: "36px" }}>
+              <Icons.Calculator /> ตารางสรุปการกระทบยอดน้ำหนักและปริมาตรสุทธิ
+            </div>
+
+            <div className="table-card">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: "25%" }}>พารามิเตอร์ที่ตรวจสอบ</th>
+                    <th style={{ width: "20%" }}>ผลรวมคำนวณจาก B/L ทุกฉบับ</th>
+                    <th style={{ width: "20%" }}>ยอดรวมสุทธิบนใบขอแก้ไข (Amend)</th>
+                    <th style={{ width: "15%" }}>สถานะความถูกต้อง</th>
+                    <th style={{ width: "20%" }}>รายละเอียดประกอบการคำนวณ (แสดงสูตรการบวกจริงแบบแยกรายฉบับ)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>น้ำหนักมวลรวมสะสม (Total G.W.)</strong></td>
+                    <td>1,060.000 KGS.</td>
+                    <td>1,060.000 KGS</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>1,060.000 KGS (จาก PKEBKK2660035) = 1,060.000 KGS</td>
+                  </tr>
+                  <tr>
+                    <td><strong>ปริมาตรสินค้าสะสม (Total CBM)</strong></td>
+                    <td>7.210 M3</td>
+                    <td>7.210 CBM</td>
+                    <td><span className="badge-match">MATCH</span></td>
+                    <td>7.210 M3 (จาก PKEBKK2660035) = 7.210 M3</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
           </div>
         )}
         <Footer />
@@ -264,7 +338,7 @@ function AuditPage({ onBack }) {
   );
 }
 
-// ─── Counter Service D/O Management Module ───────────────────────
+// ─── Tracking Module ─────────────────────────────────────────────
 function TrackingPage({ onBack }) {
   const [records, setRecords] = useState(loadRecords());
   const [bl, setBL] = useState("");
