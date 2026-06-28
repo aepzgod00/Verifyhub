@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback } from "react";
 import "./App.css";
 
-// ─── Constants & Database Helper ─────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────
 const DB_KEY = "verifyhub_v3_records";
 function loadRecords() { try { return JSON.parse(localStorage.getItem(DB_KEY) || "[]"); } catch { return []; } }
 function saveRecords(r) { try { localStorage.setItem(DB_KEY, JSON.stringify(r)); } catch {} }
@@ -24,18 +24,16 @@ const Icons = {
   Doc: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   Upload: () => <svg className="drop-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
   Alert: () => <svg className="banner-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  BackArrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-  Search: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  X: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  BackArrow: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
 };
 
-// ─── Topbar Subsystem (Enhanced Brand Prominence) ────────────────
+// ─── Topbar Subsystem ────────────────────────────────────────────
 function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
         <div className="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
         <div>
           <div className="brand-name">VERIFYHUB</div>
@@ -56,7 +54,7 @@ function TopBar() {
   );
 }
 
-// ─── Breadcrumb Component ────────────────────────────────────────
+// ─── Breadcrumb Component with Integrated Back Button UX ─────────
 function Breadcrumb({ items, onBackAction }) {
   return (
     <div className="breadcrumb-container">
@@ -132,6 +130,8 @@ function Portal({ onNavigate }) {
           <div className="welcome-sub">Choose a workspace to continue your operations.</div>
         </div>
 
+        {/* REMOVED: Stats Box Banner Section completely as requested */}
+
         <div className="section-title">Operational Workspaces</div>
         <div className="portal-grid">
           <div className="portal-card audit-theme" onClick={() => onNavigate("audit")}>
@@ -147,7 +147,7 @@ function Portal({ onNavigate }) {
                 <li><span className="check-icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></span> Auto Mismatch Flagging Intelligence</li>
               </ul>
             </div>
-            <button className="card-cta">Start Verification →</button>
+            <button className="card-cta">Star Verification →</button>
           </div>
 
           <div className="portal-card tracking-theme" onClick={() => onNavigate("tracking")}>
@@ -182,7 +182,6 @@ function AuditPage({ onBack }) {
 
   function executeVerification() {
     setLoading(true);
-    setShowResult(false);
     setTimeout(() => {
       setLoading(false);
       setShowResult(true);
@@ -213,7 +212,7 @@ function AuditPage({ onBack }) {
         </div>
 
         <button className="btn btn-primary btn-full btn-lg" disabled={!blFiles.length || !amendFiles.length} onClick={executeVerification}>
-          ประมวลผลการเปรียบเทียบข้อมูลเอกสาร
+          ประมวลผมการเปรียบเทียบข้อมูลเอกสาร
         </button>
 
         {loading && (
@@ -229,7 +228,7 @@ function AuditPage({ onBack }) {
               <Icons.Alert />
               <div>
                 <div className="banner-title">พบข้อผิดพลาด 1 จุดที่จำเป็นต้องได้รับการตรวจสอบใหม่ (Discrepancy Detected)</div>
-                <div className="banner-sub">พารามิเตอร์ตู้สินค้าบางส่วนใน Amendment ไม่สอดรับกับใบหลัก B/L</div>
+                <div className="banner-sub">พารามิเตอร์ตู้สินค้าบางส่วนในAmendment ไม่สอดรับกับใบหลัก B/L</div>
               </div>
             </div>
 
@@ -265,31 +264,18 @@ function AuditPage({ onBack }) {
   );
 }
 
-// ─── Counter Service D/O Management Module (With Real-time Search) ─
+// ─── Counter Service D/O Management Module ───────────────────────
 function TrackingPage({ onBack }) {
   const [records, setRecords] = useState(loadRecords());
   const [bl, setBL] = useState("");
   const [consignee, setConsignee] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // State สำหรับคำค้นหา
 
   function handleSubmit() {
     if (!bl.trim()) return;
-    const next = [...records, { bl: bl.trim().toUpperCase(), consignee: consignee.trim() || "N/A", date: getToday() }];
+    const next = [...records, { bl: bl.trim(), consignee: consignee.trim() || "N/A", date: getToday() }];
     setRecords(next); saveRecords(next);
     setBL(""); setConsignee("");
   }
-
-  // ระบบค้นหาข้อมูล Real-time Filter (ค้นได้ทั้ง เลข BL และ ชื่อ Consignee)
-  const filteredRecords = useMemo(() => {
-    return records.filter(r => {
-      const normalizedQuery = searchQuery.trim().toLowerCase();
-      if (!normalizedQuery) return true;
-      return (
-        r.bl.toLowerCase().includes(normalizedQuery) ||
-        r.consignee.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [records, searchQuery]);
 
   return (
     <div>
@@ -303,44 +289,21 @@ function TrackingPage({ onBack }) {
           </div>
         </div>
 
-        <div className="registry-control-panel">
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: 24, borderRadius: "var(--r-md)", boxShadow: "var(--shadow-sm)" }}>
           <div className="form-row">
             <div className="form-group">
               <label>หมายเลข Bill of Lading (B/L)</label>
-              <input type="text" value={bl} placeholder="เช่น OOCL12345678" onChange={e => setBL(e.target.value)} />
+              <input type="text" value={bl} placeholder="" onChange={e => setBL(e.target.value)} />
             </div>
             <div className="form-group">
               <label>ชื่อบริษัทลูกค้า / Consignee</label>
-              <input type="text" value={consignee} placeholder="บริษัท นำเข้า จำกัด" onChange={e => setConsignee(e.target.value)} />
+              <input type="text" value={consignee} placeholder="" onChange={e => setConsignee(e.target.value)} />
             </div>
           </div>
-          <button className="btn btn-primary" onClick={handleSubmit}>บันทึกข้อมูลปล่อยเอกสาร</button>
+          <button className="btn btn-primary" onClick={handleSubmit}>บันทึกข้อมูล</button>
         </div>
 
         <hr className="divider" />
-
-        {/* 🔍 Search Input Subsystem section */}
-        <div className="search-bar-container">
-          <div className="search-title-box">
-            <span className="search-badge-count">{filteredRecords.length}</span>
-            <div className="search-label-text">ประวัติรายการปล่อยเอกสาร</div>
-          </div>
-          <div className="search-input-wrapper">
-            <span className="search-icon"><Icons.Search /></span>
-            <input 
-              type="text" 
-              className="search-input" 
-              placeholder="พิมพ์ค้นหาด่วนด้วย หมายเลข B/L หรือ ชื่อ Consignee..." 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="btn-clear-search" onClick={() => setSearchQuery("")} title="ล้างคำค้นหา">
-                <Icons.X />
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="table-card">
           <table>
@@ -348,18 +311,14 @@ function TrackingPage({ onBack }) {
               <tr><th>หมายเลขเอกสาร B/L</th><th>ชื่อบริษัทลูกค้า (Consignee)</th><th>วันที่ปล่อย D/O</th></tr>
             </thead>
             <tbody>
-              {filteredRecords.length ? filteredRecords.map((r, i) => (
+              {records.length ? records.map((r, i) => (
                 <tr key={i}>
                   <td><strong style={{ fontFamily: "monospace", fontSize: 13, color: "var(--primary-navy)" }}>{r.bl}</strong></td>
                   <td>{r.consignee}</td>
                   <td><span className="date-badge">{r.date}</span></td>
                 </tr>
               )) : (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center", color: "var(--text-light)", padding: "48px 32px" }}>
-                    {searchQuery ? "❌ ไม่พบข้อมูลที่สอดคล้องกับคำค้นหาของคุณ" : "ยังไม่มีประวัติการลงทะเบียนในระบบฐานข้อมูลชั่วคราวขณะนี้"}
-                  </td>
-                </tr>
+                <tr><td colSpan={3} style={{ textAlign: "center", color: "var(--text-light)", padding: 32 }}>ยังไม่มีประวัติการลงทะเบียนในระบบฐานข้อมูลชั่วคราวขณะนี้</td></tr>
               )}
             </tbody>
           </table>
@@ -368,7 +327,7 @@ function TrackingPage({ onBack }) {
         <div className="danger-zone">
           <div className="danger-label">⚠ Administrator Database Flush Management</div>
           <button className="btn btn-danger" onClick={() => {
-            if(confirm("คุณต้องการล้างข้อมูลบันทึกทั้งหมดออกใช่หรือไม่?")) { setRecords([]); saveRecords([]); setSearchQuery(""); }
+            if(confirm("คุณต้องการล้างข้อมูลบันทึกทั้งหมดออกใช่หรือไม่?")) { setRecords([]); saveRecords([]); }
           }}>
             ล้างข้อมูลใน Local Storage ทั้งหมด
           </button>
