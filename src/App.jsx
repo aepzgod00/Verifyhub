@@ -38,7 +38,7 @@ async function fileToBase64(file) {
   });
 }
 
-// ─── Vector SVG Components ────────────────────────────────────────
+// ─── Vector SVG Components (Replacing Emojis) ────────────────────
 const SvgCalendar = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
 );
@@ -62,6 +62,9 @@ const SvgXCircle = () => (
 );
 const SvgAlertTriangle = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+);
+const SvgHome = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
 );
 
 // ─── Topbar ──────────────────────────────────────────────────────
@@ -218,77 +221,56 @@ function Portal({ onNavigate }) {
   );
 }
 
-// ─── Robust JSON Parsing ─────────────────────────────────────────
-function parseResult(input) {
-  if (!input) return null;
-  const targetStr = typeof input === "string" ? input : JSON.stringify(input);
-  
+// ─── Parse AI JSON result ─────────────────────────────────────────
+function parseResult(rawText) {
   try {
-    // 1. ลองแปลงตรงๆ เผื่อส่งมาเป็น JSON Object แท้
-    const direct = JSON.parse(targetStr);
-    return Array.isArray(direct) ? direct : [direct];
+    const clean = rawText.replace(/```json|```/g, "").trim();
+    const data = JSON.parse(clean);
+    return Array.isArray(data) ? data : [data];
   } catch {
-    // 2. ดึงโครงสร้าง Array [ ... ] หรือ Object { ... } ออกจาก Text ด้วย Regex
-    try {
-      const arrayMatch = targetStr.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        return JSON.parse(arrayMatch[0]);
-      }
-      const objectMatch = targetStr.match(/\{[\s\S]*\}/);
-      if (objectMatch) {
-        return [JSON.parse(objectMatch[0])];
-      }
-    } catch (e) {
-      console.error("Regex Parsing failed: ", e);
-    }
+    return null;
   }
-  return null;
 }
 
 // ─── Result Display ───────────────────────────────────────────────
 function SummarySection({ summary }) {
   if (!summary) return null;
   return (
-    <div className="bl-summary-section" style={{ marginTop: "24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "24px" }}>
-      <div className="bl-summary-title" style={{ fontSize: "16px", fontWeight: "600", color: "var(--primary-h)", display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-        <SvgBox /> Weight & Volume Summary
-      </div>
-      <div className="bl-summary-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
-        
-        <div className="bl-summary-item" style={{ background: "var(--bg)", padding: "16px", borderRadius: "var(--r-md)", border: "1px solid var(--border)" }}>
-          <div className="summary-label" style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "600", textTransform: "uppercase" }}>Gross Weight</div>
-          <div className="summary-val" style={{ fontSize: "20px", fontWeight: "600", color: "var(--text)", margin: "8px 0" }}>{summary.grossWeight?.total || "—"}</div>
-          <div className="summary-calc" style={{ fontSize: "12px", color: "var(--text-2)", fontFamily: "monospace" }}>{summary.grossWeight?.calculation || ""}</div>
-          <div style={{ marginTop: 12 }}>
-            <span className="status-indicator" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "100px", background: summary.grossWeight?.status === "MATCH" ? "var(--success-l)" : "var(--error-l)", color: summary.grossWeight?.status === "MATCH" ? "var(--success)" : "var(--error)" }}>
-              {summary.grossWeight?.status === "MATCH" ? <SvgCheckCircle /> : <SvgAlertTriangle />}
-              {summary.grossWeight?.status || "REVIEW"}
+    <div className="bl-summary-section">
+      <div className="bl-summary-title"><SvgBox /> Weight & Volume Summary</div>
+      <div className="bl-summary-grid">
+        <div className="bl-summary-item">
+          <div className="summary-label">Gross Weight</div>
+          <div className="summary-val">{summary.grossWeight?.total || "—"}</div>
+          <div className="summary-calc">{summary.grossWeight?.calculation || ""}</div>
+          <div style={{ marginTop: 10 }}>
+            <span className={`status-indicator ${summary.grossWeight?.status === "MATCH" ? "match" : summary.grossWeight?.status === "REVIEW" ? "review" : "mismatch"}`}>
+              {summary.grossWeight?.status === "MATCH" ? <SvgCheckCircle /> : summary.grossWeight?.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+              {summary.grossWeight?.status}
             </span>
           </div>
         </div>
-
-        <div className="bl-summary-item" style={{ background: "var(--bg)", padding: "16px", borderRadius: "var(--r-md)", border: "1px solid var(--border)" }}>
-          <div className="summary-label" style={{ fontSize: "12px", color: "var(--muted)", fontWeight: "600", textTransform: "uppercase" }}>Total CBM</div>
-          <div className="summary-val" style={{ fontSize: "20px", fontWeight: "600", color: "var(--text)", margin: "8px 0" }}>{summary.cbm?.total || "—"}</div>
-          <div className="summary-calc" style={{ fontSize: "12px", color: "var(--text-2)", fontFamily: "monospace" }}>{summary.cbm?.calculation || ""}</div>
-          <div style={{ marginTop: 12 }}>
-            <span className="status-indicator" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "100px", background: summary.cbm?.status === "MATCH" ? "var(--success-l)" : "var(--error-l)", color: summary.cbm?.status === "MATCH" ? "var(--success)" : "var(--error)" }}>
-              {summary.cbm?.status === "MATCH" ? <SvgCheckCircle /> : <SvgAlertTriangle />}
-              {summary.cbm?.status || "REVIEW"}
+        <div className="bl-summary-item">
+          <div className="summary-label">Total CBM</div>
+          <div className="summary-val">{summary.cbm?.total || "—"}</div>
+          <div className="summary-calc">{summary.cbm?.calculation || ""}</div>
+          <div style={{ marginTop: 10 }}>
+            <span className={`status-indicator ${summary.cbm?.status === "MATCH" ? "match" : summary.cbm?.status === "REVIEW" ? "review" : "mismatch"}`}>
+              {summary.cbm?.status === "MATCH" ? <SvgCheckCircle /> : summary.cbm?.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+              {summary.cbm?.status}
             </span>
           </div>
         </div>
-
-        <div className="bl-summary-item" style={{ background: summary.overall === "PASS" ? "var(--success-l)" : "var(--error-l)", padding: "16px", borderRadius: "var(--r-md)", border: `1px solid ${summary.overall === "PASS" ? "var(--success)" : "var(--error-b)"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-          <div className="summary-label" style={{ fontSize: "11px", color: summary.overall === "PASS" ? "var(--success)" : "var(--error)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>Overall Result</div>
-          <div style={{ fontSize: "24px", fontWeight: "700", color: summary.overall === "PASS" ? "var(--success)" : "var(--error)", margin: "4px 0" }}>
-            {summary.overall || "REVIEW"}
+        <div className="bl-summary-item bl-summary-overall">
+          <div className="summary-label">Overall Result</div>
+          <div className={`overall-result-icon ${summary.overall === "PASS" ? "overall-pass" : "overall-fail"}`}>
+            {summary.overall === "PASS" ? <SvgCheckCircle /> : <SvgXCircle />}
           </div>
-          <div style={{ fontSize: "12px", color: summary.overall === "PASS" ? "var(--success)" : "var(--error)", opacity: 0.8 }}>
-            {summary.overall === "PASS" ? "All fields verified" : "Review required"}
+          <div className={`overall-result-text ${summary.overall === "PASS" ? "overall-pass" : "overall-fail"}`}>
+            {summary.overall}
           </div>
+          <div className="summary-calc">{summary.overall === "PASS" ? "All fields verified" : "Review required"}</div>
         </div>
-
       </div>
     </div>
   );
@@ -297,14 +279,14 @@ function SummarySection({ summary }) {
 function ResultDisplay({ data, rawText }) {
   const parsed = parseResult(data || rawText);
 
-  if (!parsed || !parsed.length) {
+  if (!parsed) {
     return (
-      <div className="result-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden", marginTop: "24px" }}>
-        <div className="result-card-header" style={{ padding: "16px 24px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
-          <span style={{ fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}><SvgDocument /> ผลการตรวจสอบ (Raw Output)</span>
+      <div className="result-card">
+        <div className="result-card-header">
+          <span className="bl-number"><SvgDocument /> ผลการตรวจสอบ</span>
         </div>
-        <div style={{ padding: "24px", fontSize: 13, color: "var(--text)", whiteSpace: "pre-wrap", lineHeight: 1.7, background: "#fff", fontFamily: "monospace" }}>
-          {rawText || (typeof data === "string" ? data : JSON.stringify(data, null, 2))}
+        <div style={{ padding: "20px", fontSize: 13, color: "var(--text-2)", whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
+          {rawText}
         </div>
       </div>
     );
@@ -314,170 +296,305 @@ function ResultDisplay({ data, rawText }) {
   const totalReview   = parsed.reduce((acc, bl) => acc + (bl.items || []).filter(i => i.status === "REVIEW").length, 0);
   const totalItems    = parsed.reduce((acc, bl) => acc + (bl.items || []).length, 0);
   const overallPass   = totalMismatch === 0;
-  const globalSummary = parsed.find(bl => bl.summary)?.summary || parsed[0]?.summary || null;
+  const globalSummary = parsed.find(bl => bl.summary)?.summary || null;
+
+  function copyResult() {
+    navigator.clipboard?.writeText(JSON.stringify(parsed, null, 2));
+  }
 
   return (
-    <div style={{ marginTop: "28px" }}>
-      {/* ── Banner สรุปผลด้านบน ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", padding: "20px 24px", borderRadius: "var(--r-lg)", background: overallPass ? "var(--success-l)" : "var(--error-l)", border: `1px solid ${overallPass ? "var(--success)" : "var(--error-b)"}`, marginBottom: "24px" }}>
-        <span style={{ color: overallPass ? "var(--success)" : "var(--error)", display: "flex" }}>
-          {overallPass ? <SvgCheckCircle /> : <SvgXCircle />}
+    <div>
+      {/* ── Banner ── */}
+      <div className={`result-banner ${overallPass ? "pass" : totalMismatch <= 2 ? "warn" : "fail"}`}>
+        <span className="banner-icon">
+          {overallPass ? <SvgCheckCircle /> : totalMismatch <= 2 ? <SvgAlertTriangle /> : <SvgXCircle />}
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "16px", fontWeight: "600", color: overallPass ? "var(--success)" : "var(--error)" }}>
-            {overallPass ? "เอกสารสมบูรณ์ครบถ้วน — ข้อมูลตรงกันทั้งหมด" : `พบข้อมูลไม่ตรงกันจำนวน ${totalMismatch} จุด — โปรดตรวจสอบใบแก้ไข`}
+          <div className="banner-title">
+            {overallPass
+              ? "Verification Completed — All documents are consistent."
+              : `${totalMismatch} Mismatch${totalMismatch > 1 ? "es" : ""} Found — Review Required`}
           </div>
-          <div style={{ fontSize: "13px", color: "var(--text-2)", marginTop: "2px" }}>
-            ตรวจสอบทั้งสิ้น {totalItems} ฟิลด์ ในเอกสาร B/L จำนวน {parsed.filter(b => b.blNumber).length || 1} ฉบับ {totalReview > 0 && `(มีฟิลด์ที่ต้องพิจารณาเพิ่ม ${totalReview} จุด)`}
+          <div className="banner-sub">
+            Checked {totalItems} fields across {parsed.length} B/L document{parsed.length > 1 ? "s" : ""}
+            {totalReview > 0 && ` · ${totalReview} field${totalReview > 1 ? "s" : ""} need review`}
           </div>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", padding: "4px 10px", borderRadius: "100px", background: "var(--surface)", border: "1px solid var(--border)", color: "var(--success)" }}>{totalItems - totalMismatch - totalReview} MATCHED</span>
-          {totalMismatch > 0 && <span style={{ fontSize: "11px", fontWeight: "700", padding: "4px 10px", borderRadius: "100px", background: "var(--error)", color: "white" }}>{totalMismatch} MISMATCH</span>}
+        <div className="banner-stats">
+          <span className="bstat match">{totalItems - totalMismatch - totalReview} MATCH</span>
+          {totalReview > 0 && <span className="bstat review">{totalReview} REVIEW</span>}
+          {totalMismatch > 0 && <span className="bstat mismatch">{totalMismatch} MISMATCH</span>}
         </div>
       </div>
 
-      {/* ── Per-BL Cards ตารางแยกเปรียบเทียบทีละฉบับ ── */}
-      {parsed.filter(bl => bl.items).map((bl, i) => {
+      {/* ── Per-BL cards ── */}
+      {parsed.map((bl, i) => {
+        const mis = (bl.items || []).filter(x => x.status === "MISMATCH").length;
+        const rev = (bl.items || []).filter(x => x.status === "REVIEW").length;
+        const badgeClass = mis > 0 ? "badge-fail" : rev > 0 ? "badge-warn" : "badge-pass";
+        const badgeText  = mis > 0 ? `✗ ${mis} MISMATCH` : rev > 0 ? `⚠ ${rev} REVIEW` : "✓ PASS";
+
         return (
-          <div key={i} className="result-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden", marginBottom: "24px", boxShadow: "var(--shadow-sm)" }}>
-            <div className="result-card-header" style={{ padding: "16px 24px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: "600", fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", color: "var(--text)" }}>
-                <SvgDocument /> B/L No: <strong style={{ fontFamily: "monospace", color: "var(--primary-h)" }}>{bl.blNumber || "ไม่ระบุ/General Data"}</strong>
-              </span>
-              <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                Consignee: {bl.consignee || "—"}
-              </span>
+          <div key={i} className="result-card">
+            <div className="bl-card-header">
+              <div className="bl-card-index">B/L {String(i + 1).padStart(2, "0")}</div>
+              <div className="bl-card-title">
+                <SvgDocument />
+                <span className="bl-card-number">{bl.bl || `Document ${i + 1}`}</span>
+              </div>
+              <span className={`bl-status-badge ${badgeClass}`}>{badgeText}</span>
             </div>
 
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+              <table className="result-table">
                 <thead>
-                  <tr style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "12px 18px", fontWeight: "600", color: "var(--text-2)", width: "22%" }}>หัวข้อเอกสาร (Field)</th>
-                    <th style={{ padding: "12px 18px", fontWeight: "600", color: "var(--primary-h)", width: "34%" }}>ข้อมูลเดิมใน B/L</th>
-                    <th style={{ padding: "12px 18px", fontWeight: "600", color: "var(--error)", width: "34%" }}>ข้อมูลแก้ไข (Amendment Notice)</th>
-                    <th style={{ padding: "12px 18px", fontWeight: "600", color: "var(--text-2)", width: "10%", textAlign: "center" }}>สถานะ</th>
+                  <tr>
+                    <th style={{ width: "14%" }}>Field</th>
+                    <th style={{ width: "28%" }}>ข้อมูล B/L (ต้นฉบับ)</th>
+                    <th style={{ width: "28%" }}>ข้อมูล Amend (แก้ไข)</th>
+                    <th style={{ width: "12%" }}>Status</th>
+                    <th style={{ width: "18%" }}>Remark</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bl.items.map((item, idx) => {
-                    const isMismatch = item.status === "MISMATCH";
-                    const isReview = item.status === "REVIEW";
-                    
-                    let rowBg = "transparent";
-                    if (isMismatch) rowBg = "var(--error-l)";
-                    else if (isReview) rowBg = "var(--warning-l)";
-
+                  {(bl.items || []).map((item, j) => {
+                    const rowClass = item.status === "MISMATCH" ? "row-mismatch" : item.status === "REVIEW" ? "row-review" : "";
                     return (
-                      <tr key={idx} style={{ background: rowBg, borderBottom: "1px solid var(--border)" }}>
-                        <td style={{ padding: "14px 18px", fontWeight: "600", color: "var(--text)" }}>
-                          {item.field}
-                        </td>
-                        <td style={{ padding: "14px 18px", color: isMismatch ? "var(--text)" : "var(--text-2)", textDecoration: isMismatch ? "line-through" : "none", opacity: isMismatch ? 0.6 : 1, whiteSpace: "pre-wrap" }}>
-                          {item.original || "—"}
-                        </td>
-                        <td style={{ padding: "14px 18px", color: isMismatch ? "var(--error)" : "var(--text)", fontWeight: isMismatch ? "600" : "normal", whiteSpace: "pre-wrap" }}>
-                          {item.amended || "—"}
-                        </td>
-                        <td style={{ padding: "14px 18px", textAlign: "center" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "700", padding: "4px 8px", borderRadius: "4px", background: isMismatch ? "var(--error-l)" : isReview ? "#FFF3CD" : "var(--primary-l)", color: isMismatch ? "var(--error)" : isReview ? "#856404" : "var(--primary)", border: `1px solid ${isMismatch ? "var(--error-b)" : "transparent"}` }}>
-                            {isMismatch ? "❌ MISMATCH" : isReview ? "⚠️ REVIEW" : "✔️ MATCH"}
+                      <tr key={j} className={rowClass}>
+                        <td><span className="field-name">{item.field}</span></td>
+                        <td><span className="field-value">{item.original}</span></td>
+                        <td>
+                          <span className={`field-value ${item.status === "MISMATCH" ? "field-changed" : item.status === "REVIEW" ? "field-review" : ""}`}>
+                            {item.amend}
                           </span>
                         </td>
+                        <td>
+                          <span className={`status-indicator ${item.status === "MATCH" ? "match" : item.status === "REVIEW" ? "review" : "mismatch"}`}>
+                            {item.status === "MATCH" ? <SvgCheckCircle /> : item.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+                            {item.status}
+                          </span>
+                        </td>
+                        <td><span className="remark-text">{item.remark}</span></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+
+            {bl.summary && <SummarySection summary={bl.summary} />}
           </div>
         );
       })}
 
-      {/* ── Summary ส่วนท้าย ── */}
-      <SummarySection summary={globalSummary} />
+      {globalSummary && !parsed.some(bl => bl.summary) && (
+        <div className="result-card">
+          <div className="result-card-header">
+            <span className="bl-number"><SvgBox /> Weight & Volume Summary (Combined)</span>
+            <span className={`bl-status-badge ${globalSummary.overall === "PASS" ? "badge-pass" : "badge-fail"}`}>
+              Overall: {globalSummary.overall}
+            </span>
+          </div>
+          <SummarySection summary={globalSummary} />
+        </div>
+      )}
+
+      {/* ── Export bar ── */}
+      <div className="export-bar">
+        <span className="label">Export:</span>
+        <button className="btn btn-secondary" onClick={copyResult}>Copy JSON</button>
+        <button className="btn btn-secondary" onClick={() => {
+          const txt = JSON.stringify(parsed, null, 2);
+          const a = document.createElement("a");
+          a.href = "data:text/json," + encodeURIComponent(txt);
+          a.download = "verifyhub-result.json";
+          a.click();
+        }}>Download JSON</button>
+        <button className="btn btn-secondary" onClick={() => window.print()}>Print Report</button>
+      </div>
     </div>
   );
 }
 
 // ─── Audit Page ───────────────────────────────────────────────────
+const LOADING_STAGES = [
+  { label: "Extracting Document Data...", sub: "Reading B/L and Amendment files" },
+  { label: "Comparing Fields...", sub: "Cross-referencing Consignee, Weight, Marks" },
+  { label: "Calculating Totals...", sub: "Summing Gross Weight and CBM" },
+  { label: "Generating Report...", sub: "Preparing structured output" },
+];
+
 function AuditPage({ onBack }) {
-  const [blFiles, setBlFiles] = useState([]);
-  const [amFiles, setAmFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [blFiles, setBLFiles] = useState([]);
+  const [amendFiles, setAmendFiles] = useState([]);
   const [result, setResult] = useState(null);
   const [rawText, setRawText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadStage, setLoadStage] = useState(0);
+  const [step, setStep] = useState(1);
 
-  const runAudit = async () => {
-    if (!blFiles.length || !amFiles.length) return;
-    setLoading(true); setResult(null); setRawText("");
+  async function runAudit() {
+    if (!blFiles.length || !amendFiles.length || loading) return;
+    setLoading(true); setResult(null); setRawText(""); setStep(2);
+
+    const stageTimer = setInterval(() => {
+      setLoadStage(s => (s < LOADING_STAGES.length - 1 ? s + 1 : s));
+    }, 1800);
 
     try {
-      const blBase64 = await fileToBase64(blFiles[0]);
-      const amBase64 = await fileToBase64(amFiles[0]);
+      const content = [];
+      for (const f of [...blFiles, ...amendFiles]) {
+        const b64 = await fileToBase64(f);
+        const mt = f.type || "application/pdf";
+        content.push(mt === "application/pdf"
+          ? { type: "document", source: { type: "base64", media_type: mt, data: b64 } }
+          : { type: "image", source: { type: "base64", media_type: mt, data: b64 } });
+      }
 
-      const res = await fetch("https://round-block-b91c.back26.workers.dev/api/audit", {
+      content.push({ type: "text", text: `You are a logistics document compliance auditor for Seabra Trans Freight.
+Analyze the uploaded B/L and Amendment documents carefully.
+
+OUTPUT FORMAT: Respond ONLY with valid JSON, no markdown, no preamble.
+
+JSON Structure:
+[
+  {
+    "bl": "B/L number here",
+    "items": [
+      {
+        "field": "Consignee",
+        "original": "value from B/L",
+        "amend": "value from Amendment",
+        "status": "MATCH or MISMATCH or REVIEW",
+        "remark": "brief explanation"
+      }
+    ]
+  }
+]
+
+Include a "summary" object in the FIRST B/L entry:
+"summary": {
+  "grossWeight": {
+    "total": "combined total",
+    "calculation": "X KGS (BL-001) + Y KGS (BL-002) = Z KGS",
+    "status": "MATCH or MISMATCH"
+  },
+  "cbm": {
+    "total": "combined total",
+    "calculation": "X CBM (BL-001) + Y CBM (BL-002) = Z CBM",
+    "status": "MATCH or MISMATCH"
+  },
+  "overall": "PASS or FAIL"
+}
+
+AUDIT RULES:
+- Consignee: match company name only, ignore address/building/zip
+- Quantity: match numbers and units, ignore formatting
+- Description: match core product names, ignore spacing
+- Shipping Marks: exact match required
+- Status options: MATCH, MISMATCH, REVIEW (use REVIEW when ambiguous)
+
+Fields to check per B/L: Consignee, Quantity, Shipping Marks, Description of Goods, Gross Weight, CBM
+
+Output ONLY the JSON array. Nothing else.` });
+
+      const resp = await fetch("/api/proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blFileName: blFiles[0].name,
-          blFileData: blBase64,
-          amFileName: amFiles[0].name,
-          amFileData: amBase64
-        })
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content }] }),
       });
+      const data = await resp.json();
+      const text = data.content?.map(b => b.text || "").join("\n") || "";
+      setRawText(text);
+      setResult(text);
 
-      if (!res.ok) throw new Error("Server error: " + res.status);
-      const data = await res.json();
-      
-      if (data.result) {
-        setResult(data.result);
-      } else if (data.text) {
-        setRawText(data.text);
-      } else {
-        throw new Error("Invalid response format");
-      }
-    } catch (err) {
-      alert("เกิดข้อผิดพลาด: " + err.message);
-    } finally {
-      setLoading(false);
+      const s = getStats();
+      s.documents += blFiles.length;
+      s.verified += blFiles.length;
+      saveStats(s);
+      setStep(3);
+    } catch (e) {
+      setRawText("เกิดข้อผิดพลาด: " + e.message);
+      setStep(3);
     }
-  };
+    clearInterval(stageTimer);
+    setLoadStage(0);
+    setLoading(false);
+  }
+
+  const canRun = blFiles.length > 0 && amendFiles.length > 0 && !loading;
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Home", onClick: onBack }, { label: "Document Audit" }]} />
+      <Breadcrumb items={[{ label: "Home", onClick: onBack }, { label: "Document Verification" }]} />
       <main className="main">
+        
         <div className="header-actions">
           <div className="page-header">
             <div className="page-icon"><SvgSearch /></div>
             <div>
-              <h1 className="page-title-text">Document Audit Workspace</h1>
-              <p className="page-sub">อัปโหลดเอกสารเพื่อเปรียบเทียบข้อมูลจำเพาะ</p>
+              <div className="page-title-text">Automated Document Verification</div>
+              <div className="page-sub">Compare B/L against Amendment — field-by-field with structured report</div>
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={onBack}>กลับหน้าหลัก</button>
+          <button className="btn btn-secondary" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <SvgHome /> กลับหน้าหลัก
+          </button>
+        </div>
+
+        <div className="progress-steps" style={{ marginBottom: 24 }}>
+          {[
+            { n: 1, label: "Upload Files" },
+            { n: 2, label: "Processing" },
+            { n: 3, label: "Result" },
+          ].map((s, i, arr) => (
+            <span key={s.n} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+              <span className={`step ${step === s.n ? "active" : step > s.n ? "done" : ""}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="step-num">{step > s.n ? "✓" : s.n}</span>
+                <span className="step-label">{s.label}</span>
+              </span>
+              {i < arr.length - 1 && <span className="step-divider" style={{ flex: 1 }}></span>}
+            </span>
+          ))}
         </div>
 
         <div className="upload-grid">
           <div>
-            <div className="upload-col-label lbl-bl"><SvgDocument /> 1. ไฟล์เอกสาร B/L ตัวหลัก</div>
-            <DropZone files={blFiles} onFiles={setBlFiles} accept=".pdf,image/*" />
+            <div className="upload-col-label lbl-bl"><SvgDocument /> Bill of Lading (B/L)</div>
+            <DropZone 
+              files={blFiles} 
+              onFiles={(newFiles) => setBLFiles(prev => [...prev, ...newFiles])} 
+              accept=".pdf,.png,.jpg,.jpeg" 
+              label="B/L" 
+            />
           </div>
           <div>
-            <div className="upload-col-label lbl-am"><SvgDocument /> 2. ไฟล์ใบแก้ไข Amendment Notice</div>
-            <DropZone files={amFiles} onFiles={setAmFiles} accept=".pdf,image/*" />
+            <div className="upload-col-label lbl-am"><SvgDocument /> Amend & Attached Sheet</div>
+            <DropZone 
+              files={amendFiles} 
+              onFiles={(newFiles) => setAmendFiles(prev => [...prev, ...newFiles])} 
+              accept=".pdf,.png,.jpg,.jpeg" 
+              label="Amend" 
+            />
           </div>
         </div>
 
-        <div style={{ textAlign: "center", margin: "32px 0" }}>
-          <button className="btn btn-primary btn-lg" onClick={runAudit} disabled={loading || !blFiles.length || !amFiles.length}>
-            {loading ? "กำลังวิเคราะห์และเปรียบเทียบข้อมูล..." : "เริ่มกระบวนการตรวจสอบเอกสาร"}
-          </button>
-        </div>
+        <button className="btn btn-primary btn-full btn-lg" disabled={!canRun} onClick={runAudit}
+          style={{ borderRadius: "100px", marginTop: "24px" }}>
+          {loading ? "กำลังประมวลผล..." : "ประมวลผลการเปรียบเทียบเอกสาร"}
+        </button>
 
-        {(result || rawText) && <ResultDisplay data={result} rawText={rawText} />}
+        {loading && (
+          <div className="loading-box">
+            <div className="loading-spinner"></div>
+            <div className="loading-stage">{LOADING_STAGES[loadStage].label}</div>
+            <div className="loading-sub">{LOADING_STAGES[loadStage].sub}</div>
+          </div>
+        )}
+
+        {result && !loading && <div style={{ marginTop: 24 }}><ResultDisplay data={result} rawText={rawText} /></div>}
+
+        <Footer />
       </main>
     </div>
   );
@@ -485,24 +602,29 @@ function AuditPage({ onBack }) {
 
 // ─── Tracking Page ────────────────────────────────────────────────
 function TrackingPage({ onBack }) {
-  const [records, setRecords] = useState(loadRecords);
-  const [search, setSearch] = useState("");
-  const [bl, setBl] = useState("");
+  const [records, setRecords] = useState(loadRecords());
+  const [bl, setBL] = useState("");
   const [consignee, setConsignee] = useState("");
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState("");
 
-  const addRecord = e => {
-    e.preventDefault();
-    if (!bl.trim() || !consignee.trim()) return;
-    const newRecords = [{ bl: bl.toUpperCase(), consignee, date: getToday() }, ...records];
-    setRecords(newRecords); saveRecords(newRecords);
-    setBl(""); setConsignee("");
-  };
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
 
-  const clearAll = () => {
-    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างฐานข้อมูลประวัติทั้งหมด?")) {
+  function saveDO() {
+    if (!bl.trim()) { showToast("โปรดกรอกหมายเลข B/L"); return; }
+    const next = records.filter(r => r.bl !== bl.trim());
+    next.push({ bl: bl.trim(), consignee: consignee.trim() || "ลูกค้าหน้าเคาน์เตอร์", date: getToday() });
+    setRecords(next); saveRecords(next);
+    setBL(""); setConsignee("");
+    showToast("บันทึก " + bl.trim() + " เรียบร้อยแล้ว");
+  }
+
+  function clearAll() {
+    if (window.confirm("ยืนยันลบข้อมูลทั้งหมด?")) {
       setRecords([]); saveRecords([]);
+      showToast("ล้างข้อมูลทั้งหมดแล้ว");
     }
-  };
+  }
 
   const filtered = records.filter(r =>
     r.bl.toLowerCase().includes(search.toLowerCase()) ||
@@ -511,53 +633,63 @@ function TrackingPage({ onBack }) {
 
   return (
     <div>
+      {toast && <div className="toast show">{toast}</div>}
       <Breadcrumb items={[{ label: "Home", onClick: onBack }, { label: "D/O Management" }]} />
       <main className="main">
+        
         <div className="header-actions">
           <div className="page-header">
             <div className="page-icon"><SvgBox /></div>
             <div>
-              <h1 className="page-title-text">Counter D/O Release Logs</h1>
-              <p className="page-sub">บันทึกและตรวจสอบประวัติการปล่อยใบส่งมอบสินค้าประจำวัน</p>
+              <div className="page-title-text">D/O Release Management</div>
+              <div className="page-sub">บันทึกและค้นหาประวัติการรับมอบเอกสาร Delivery Order</div>
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={onBack}>กลับหน้าหลัก</button>
+          <button className="btn btn-secondary" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <SvgHome /> กลับหน้าหลัก
+          </button>
         </div>
 
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: 24, marginBottom: 32 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>บันทึกรายการรับมอบ D/O ใหม่</div>
-          <form onSubmit={addRecord} style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>เลขที่ B/L No.</label>
-              <input type="text" value={bl} onChange={e => setBl(e.target.value)} placeholder="เช่น OOCL249001..." style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--r-sm)", border: "1px solid var(--border-s)", fontSize: 13, fontFamily: "monospace" }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", marginBottom: 6 }}>ชื่อบริษัทผู้รับสินค้า (Consignee)</label>
-              <input type="text" value={consignee} onChange={e => setConsignee(e.target.value)} placeholder="เช่น บริษัท ซีบรา ทรานส์ จำกัด..." style={{ width: "100%", padding: "10px 14px", borderRadius: "var(--r-sm)", border: "1px solid var(--border-s)", fontSize: 13 }} />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: "11px 24px" }}>บันทึกข้อมูล</button>
-          </form>
-        </div>
-
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", overflow: "hidden", marginBottom: 32 }}>
-          <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 600 }}>ประวัติการทำรายการในระบบ ({filtered.length} รายการ)</div>
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="ค้นหาเลข B/L หรือชื่อบริษัท..." style={{ padding: "6px 14px", borderRadius: 100, border: "1px solid var(--border-s)", fontSize: 12, width: 240 }} />
+        <div className="tracking-section-title"><span className="sec-dot"></span>บันทึกการรับ D/O</div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>หมายเลข Bill of Lading (B/L)</label>
+            <input type="text" placeholder="เช่น PKELCH2660002" value={bl} onChange={e => setBL(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveDO()} />
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <div className="form-group">
+            <label>ชื่อบริษัทลูกค้า / Consignee</label>
+            <input type="text" placeholder="เช่น SIAM LOGISTICS CO., LTD." value={consignee} onChange={e => setConsignee(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveDO()} />
+          </div>
+        </div>
+        <button className="btn btn-primary" style={{ borderRadius: "100px", padding: "11px 28px" }} onClick={saveDO}>
+          บันทึกการรับมอบเอกสาร
+        </button>
+
+        <hr className="divider" />
+
+        <div className="tracking-section-title"><span className="sec-dot"></span>ค้นหาประวัติ</div>
+        <div className="search-wrap">
+          <span className="search-icon"><SvgSearch /></span>
+          <input type="text" placeholder="พิมพ์เลข B/L หรือชื่อ Consignee..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+
+        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
+          แสดง {filtered.length} รายการ {search && `(กรองจาก "${search}")`}
+        </div>
+
+        <div className="table-card">
+          <table>
             <thead>
-              <tr style={{ background: "var(--bg)", fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>
-                <th style={{ padding: "12px 20px" }}>B/L Number</th>
-                <th style={{ padding: "12px 20px" }}>Consignee Name</th>
-                <th style={{ padding: "12px 20px" }}>Release Date</th>
-              </tr>
+              <tr><th>เลขที่ B/L</th><th>Consignee</th><th>วันที่รับ D/O</th></tr>
             </thead>
             <tbody>
-              {filtered.length ? filtered.map((r, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "14px 20px" }}><strong style={{ fontFamily: "monospace", fontSize: 13 }}>{r.bl}</strong></td>
-                  <td style={{ padding: "14px 20px" }}>{r.consignee}</td>
-                  <td style={{ padding: "14px 20px" }}><span className="date-badge">{r.date}</span></td>
+              {filtered.length ? filtered.map(r => (
+                <tr key={r.bl}>
+                  <td><strong style={{ fontFamily: "monospace", fontSize: 13 }}>{r.bl}</strong></td>
+                  <td>{r.consignee}</td>
+                  <td><span className="date-badge">{r.date}</span></td>
                 </tr>
               )) : (
                 <tr><td colSpan={3} className="empty-row" style={{ textAlign: "center", color: "var(--muted)", padding: 48 }}>ยังไม่มีข้อมูล</td></tr>
@@ -587,7 +719,7 @@ function Footer() {
   );
 }
 
-// ─── Root Component ────────────────────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("portal");
   return (
