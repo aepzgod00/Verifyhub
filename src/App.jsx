@@ -233,6 +233,49 @@ function parseResult(rawText) {
 }
 
 // ─── Result Display ───────────────────────────────────────────────
+function SummarySection({ summary }) {
+  if (!summary) return null;
+  return (
+    <div className="bl-summary-section">
+      <div className="bl-summary-title"><SvgBox /> Weight & Volume Summary</div>
+      <div className="bl-summary-grid">
+        <div className="bl-summary-item">
+          <div className="summary-label">Gross Weight</div>
+          <div className="summary-val">{summary.grossWeight?.total || "—"}</div>
+          <div className="summary-calc">{summary.grossWeight?.calculation || ""}</div>
+          <div style={{ marginTop: 10 }}>
+            <span className={`status-indicator ${summary.grossWeight?.status === "MATCH" ? "match" : summary.grossWeight?.status === "REVIEW" ? "review" : "mismatch"}`}>
+              {summary.grossWeight?.status === "MATCH" ? <SvgCheckCircle /> : summary.grossWeight?.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+              {summary.grossWeight?.status}
+            </span>
+          </div>
+        </div>
+        <div className="bl-summary-item">
+          <div className="summary-label">Total CBM</div>
+          <div className="summary-val">{summary.cbm?.total || "—"}</div>
+          <div className="summary-calc">{summary.cbm?.calculation || ""}</div>
+          <div style={{ marginTop: 10 }}>
+            <span className={`status-indicator ${summary.cbm?.status === "MATCH" ? "match" : summary.cbm?.status === "REVIEW" ? "review" : "mismatch"}`}>
+              {summary.cbm?.status === "MATCH" ? <SvgCheckCircle /> : summary.cbm?.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+              {summary.cbm?.status}
+            </span>
+          </div>
+        </div>
+        <div className="bl-summary-item bl-summary-overall">
+          <div className="summary-label">Overall Result</div>
+          <div className={`overall-result-icon ${summary.overall === "PASS" ? "overall-pass" : "overall-fail"}`}>
+            {summary.overall === "PASS" ? <SvgCheckCircle /> : <SvgXCircle />}
+          </div>
+          <div className={`overall-result-text ${summary.overall === "PASS" ? "overall-pass" : "overall-fail"}`}>
+            {summary.overall}
+          </div>
+          <div className="summary-calc">{summary.overall === "PASS" ? "All fields verified" : "Review required"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ResultDisplay({ data, rawText }) {
   const parsed = parseResult(data || rawText);
 
@@ -250,8 +293,11 @@ function ResultDisplay({ data, rawText }) {
   }
 
   const totalMismatch = parsed.reduce((acc, bl) => acc + (bl.items || []).filter(i => i.status === "MISMATCH").length, 0);
-  const totalItems = parsed.reduce((acc, bl) => acc + (bl.items || []).length, 0);
-  const overallPass = totalMismatch === 0;
+  const totalReview   = parsed.reduce((acc, bl) => acc + (bl.items || []).filter(i => i.status === "REVIEW").length, 0);
+  const totalItems    = parsed.reduce((acc, bl) => acc + (bl.items || []).length, 0);
+  const overallPass   = totalMismatch === 0;
+  // Find summary from whichever BL has it
+  const globalSummary = parsed.find(bl => bl.summary)?.summary || null;
 
   function copyResult() {
     navigator.clipboard?.writeText(JSON.stringify(parsed, null, 2));
@@ -259,105 +305,107 @@ function ResultDisplay({ data, rawText }) {
 
   return (
     <div>
-      {/* Banner */}
+      {/* ── Banner ── */}
       <div className={`result-banner ${overallPass ? "pass" : totalMismatch <= 2 ? "warn" : "fail"}`}>
         <span className="banner-icon">
           {overallPass ? <SvgCheckCircle /> : totalMismatch <= 2 ? <SvgAlertTriangle /> : <SvgXCircle />}
         </span>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="banner-title">
-            {overallPass ? "Verification Completed — All documents are consistent." : `${totalMismatch} Mismatch${totalMismatch > 1 ? "es" : ""} Found — Review Required`}
+            {overallPass
+              ? "Verification Completed — All documents are consistent."
+              : `${totalMismatch} Mismatch${totalMismatch > 1 ? "es" : ""} Found — Review Required`}
           </div>
-          <div className="banner-sub">Checked {totalItems} fields across {parsed.length} B/L document{parsed.length > 1 ? "s" : ""}</div>
+          <div className="banner-sub">
+            Checked {totalItems} fields across {parsed.length} B/L document{parsed.length > 1 ? "s" : ""}
+            {totalReview > 0 && ` · ${totalReview} field${totalReview > 1 ? "s" : ""} need review`}
+          </div>
+        </div>
+        {/* Quick stat chips */}
+        <div className="banner-stats">
+          <span className="bstat match">{totalItems - totalMismatch - totalReview} MATCH</span>
+          {totalReview > 0 && <span className="bstat review">{totalReview} REVIEW</span>}
+          {totalMismatch > 0 && <span className="bstat mismatch">{totalMismatch} MISMATCH</span>}
         </div>
       </div>
 
-      {/* Per-BL cards */}
+      {/* ── Per-BL cards ── */}
       {parsed.map((bl, i) => {
         const mis = (bl.items || []).filter(x => x.status === "MISMATCH").length;
+        const rev = (bl.items || []).filter(x => x.status === "REVIEW").length;
+        const badgeClass = mis > 0 ? "badge-fail" : rev > 0 ? "badge-warn" : "badge-pass";
+        const badgeText  = mis > 0 ? `✗ ${mis} MISMATCH` : rev > 0 ? `⚠ ${rev} REVIEW` : "✓ PASS";
+
         return (
           <div key={i} className="result-card">
-            <div className="result-card-header">
-              <span className="bl-number"><SvgDocument /> {bl.bl || `Document ${i + 1}`}</span>
-              <span className={`bl-status-badge ${mis === 0 ? "badge-pass" : "badge-fail"}`}>
-                {mis === 0 ? "✓ PASS" : `✗ ${mis} MISMATCH`}
-              </span>
+            {/* BL Header — prominent divider */}
+            <div className="bl-card-header">
+              <div className="bl-card-index">B/L {String(i + 1).padStart(2, "0")}</div>
+              <div className="bl-card-title">
+                <SvgDocument />
+                <span className="bl-card-number">{bl.bl || `Document ${i + 1}`}</span>
+              </div>
+              <span className={`bl-status-badge ${badgeClass}`}>{badgeText}</span>
             </div>
-            <table className="result-table">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>ข้อมูล B/L</th>
-                  <th>ข้อมูล Amend</th>
-                  <th>Status</th>
-                  <th>Remark</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(bl.items || []).map((item, j) => (
-                  <tr key={j}>
-                    <td><span className="field-name">{item.field}</span></td>
-                    <td><span className="field-value">{item.original}</span></td>
-                    <td><span className="field-value">{item.amend}</span></td>
-                    <td>
-                      <span className={`status-indicator ${item.status === "MATCH" ? "match" : item.status === "REVIEW" ? "review" : "mismatch"}`}>
-                        {item.status === "MATCH" ? <SvgCheckCircle /> : item.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
-                        {item.status}
-                      </span>
-                    </td>
-                    <td><span className="remark-text">{item.remark}</span></td>
+
+            {/* Field comparison table */}
+            <div style={{ overflowX: "auto" }}>
+              <table className="result-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "14%" }}>Field</th>
+                    <th style={{ width: "28%" }}>ข้อมูล B/L (ต้นฉบับ)</th>
+                    <th style={{ width: "28%" }}>ข้อมูล Amend (แก้ไข)</th>
+                    <th style={{ width: "12%" }}>Status</th>
+                    <th style={{ width: "18%" }}>Remark</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(bl.items || []).map((item, j) => {
+                    const rowClass = item.status === "MISMATCH" ? "row-mismatch" : item.status === "REVIEW" ? "row-review" : "";
+                    return (
+                      <tr key={j} className={rowClass}>
+                        <td><span className="field-name">{item.field}</span></td>
+                        <td><span className="field-value">{item.original}</span></td>
+                        <td>
+                          <span className={`field-value ${item.status === "MISMATCH" ? "field-changed" : item.status === "REVIEW" ? "field-review" : ""}`}>
+                            {item.amend}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-indicator ${item.status === "MATCH" ? "match" : item.status === "REVIEW" ? "review" : "mismatch"}`}>
+                            {item.status === "MATCH" ? <SvgCheckCircle /> : item.status === "REVIEW" ? <SvgAlertTriangle /> : <SvgXCircle />}
+                            {item.status}
+                          </span>
+                        </td>
+                        <td><span className="remark-text">{item.remark}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Per-BL summary (if this BL has it) */}
+            {bl.summary && <SummarySection summary={bl.summary} />}
           </div>
         );
       })}
 
-      {/* Summary card */}
-      {parsed[0]?.summary && (
-        <div className="summary-card">
+      {/* ── Global summary (if stored separately / not per-BL) ── */}
+      {globalSummary && !parsed.some(bl => bl.summary) && (
+        <div className="result-card">
           <div className="result-card-header">
-            <span className="bl-number"><SvgBox /> Weight & Volume Summary</span>
-            <span className={`bl-status-badge ${parsed[0].summary.overall === "PASS" ? "badge-pass" : "badge-fail"}`}>
-              Overall: {parsed[0].summary.overall}
+            <span className="bl-number"><SvgBox /> Weight & Volume Summary (Combined)</span>
+            <span className={`bl-status-badge ${globalSummary.overall === "PASS" ? "badge-pass" : "badge-fail"}`}>
+              Overall: {globalSummary.overall}
             </span>
           </div>
-          <div className="summary-grid">
-            <div className="summary-item">
-              <div className="summary-label">Gross Weight</div>
-              <div className="summary-val">{parsed[0].summary.grossWeight?.total || "—"}</div>
-              <div className="summary-calc">{parsed[0].summary.grossWeight?.calculation || ""}</div>
-              <div style={{ marginTop: 10 }}>
-                <span className={`status-indicator ${parsed[0].summary.grossWeight?.status === "MATCH" ? "match" : "mismatch"}`}>
-                  {parsed[0].summary.grossWeight?.status === "MATCH" ? <SvgCheckCircle /> : <SvgXCircle />}
-                  {parsed[0].summary.grossWeight?.status}
-                </span>
-              </div>
-            </div>
-            <div className="summary-item">
-              <div className="summary-label">Total CBM</div>
-              <div className="summary-val">{parsed[0].summary.cbm?.total || "—"}</div>
-              <div className="summary-calc">{parsed[0].summary.cbm?.calculation || ""}</div>
-              <div style={{ marginTop: 10 }}>
-                <span className={`status-indicator ${parsed[0].summary.cbm?.status === "MATCH" ? "match" : "mismatch"}`}>
-                  {parsed[0].summary.cbm?.status === "MATCH" ? <SvgCheckCircle /> : <SvgXCircle />}
-                  {parsed[0].summary.cbm?.status}
-                </span>
-              </div>
-            </div>
-            <div className="summary-item" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
-              <div className="summary-label">Overall Result</div>
-              <div style={{ color: parsed[0].summary.overall === "PASS" ? "var(--success)" : "var(--error)", display: "flex", alignItems: "center", margin: "6px 0" }}>
-                {parsed[0].summary.overall === "PASS" ? <SvgCheckCircle /> : <SvgXCircle />}
-              </div>
-              <div className="summary-calc">{parsed[0].summary.overall === "PASS" ? "All fields verified" : "Review required"}</div>
-            </div>
-          </div>
+          <SummarySection summary={globalSummary} />
         </div>
       )}
 
-      {/* Export bar */}
+      {/* ── Export bar ── */}
       <div className="export-bar">
         <span className="label">Export:</span>
         <button className="btn btn-secondary" onClick={copyResult}>Copy JSON</button>
