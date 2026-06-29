@@ -126,9 +126,11 @@ function DropZone({ files, onFiles, accept, label }) {
   }, [onFiles]);
 
   const onDrop = e => {
-    e.preventDefault(); setOver(false);
-    handle(e.dataTransfer.files);
-  };
+  e.preventDefault(); 
+  e.stopPropagation(); // เพิ่มบรรทัดนี้เพื่อป้องกัน Event บับเบิ้ลขึ้นไปบนเบราว์เซอร์
+  setOver(false);
+  handle(e.dataTransfer.files);
+};
 
   return (
     <div>
@@ -565,16 +567,30 @@ Output ONLY the JSON array. Nothing else.` });
           ))}
         </div>
 
-        <div className="upload-grid">
-          <div>
-            <div className="upload-col-label lbl-bl"><SvgDocument /> Bill of Lading (B/L)</div>
-            <DropZone files={blFiles} onFiles={setBLFiles} accept=".pdf,.png,.jpg,.jpeg" label="B/L" />
-          </div>
-          <div>
-            <div className="upload-col-label lbl-am"><SvgDocument /> Amend & Attached Sheet</div>
-            <DropZone files={amendFiles} onFiles={setAmendFiles} accept=".pdf,.png,.jpg,.jpeg" label="Amend" />
-          </div>
-        </div>
+        // ค้นหาโค้ดส่วนนี้ใน AuditPage แล้วแก้ไขตรง onFiles ของทั้งสองช่องครับ:
+
+<div className="upload-grid">
+  <div>
+    <div className="upload-col-label lbl-bl"><SvgDocument /> Bill of Lading (B/L)</div>
+    <DropZone 
+      files={blFiles} 
+      // แก้ไขตรงนี้: นำไฟล์ใหม่ไปรวมกับไฟล์เดิมที่มีอยู่แล้ว
+      onFiles={(newFiles) => setBLFiles(prev => [...prev, ...newFiles])} 
+      accept=".pdf,.png,.jpg,.jpeg" 
+      label="B/L" 
+    />
+  </div>
+  <div>
+    <div className="upload-col-label lbl-am"><SvgDocument /> Amend & Attached Sheet</div>
+    <DropZone 
+      files={amendFiles} 
+      // แก้ไขตรงนี้: นำไฟล์ใหม่ไปรวมกับไฟล์เดิมที่มีอยู่แล้ว
+      onFiles={(newFiles) => setAmendFiles(prev => [...prev, ...newFiles])} 
+      accept=".pdf,.png,.jpg,.jpeg" 
+      label="Amend" 
+    />
+  </div>
+</div>
 
         <button className="btn btn-primary btn-full btn-lg" disabled={!canRun} onClick={runAudit}
           style={{ borderRadius: "100px" }}>
